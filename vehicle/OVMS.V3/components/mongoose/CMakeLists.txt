@@ -12,17 +12,14 @@ if (CONFIG_MG_SSL_IF_WOLFSSL)
   list(APPEND priv_includedirs "../wolfssl/wolfssl" "../wolfssl/wolfssl/wolfssl")
 endif ()
 
-set(MG_VERSION_COMPONENTS)
-execute_process(
-  COMMAND cat "${COMPONENT_DIR}/mongoose/mongoose.h"
-  COMMAND grep "#define MG_VERSION"
-  COMMAND cut "-d" " " "-f3"
-  COMMAND sed -e s/\"//g
-  OUTPUT_VARIABLE MG_VERSION
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-# include(CMakePrintHelpers)
-# cmake_print_variables(MG_VERSION)
+set(MG_VERSION)
+file(READ "${COMPONENT_DIR}/mongoose/mongoose.h" MG_HDR)
+if (MG_HDR MATCHES "#define MG_VERSION[ ]+\"([0-9]+\\.[0-9]+(\\.[0-9]+)?)\"")
+  set(MG_VERSION "${CMAKE_MATCH_1}")
+endif()
+if (NOT MG_VERSION)
+  set(MG_VERSION "0.0.0")
+endif()
 message(STATUS "Compiled Mongoose version: ${MG_VERSION}" )
 
 string(REPLACE "." ";" MG_VERSION_COMPONENTS ${MG_VERSION})

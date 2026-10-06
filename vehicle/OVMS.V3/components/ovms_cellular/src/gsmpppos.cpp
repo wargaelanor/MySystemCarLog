@@ -43,7 +43,7 @@ static const char *TAG = "gsm-ppp";
 #include <netif/ppp/pppapi.h>
 #endif
 
-static u32_t GsmPPPOS_OutputCallback(ppp_pcb *pcb, u8_t *data, u32_t len, void *ctx)
+static u32_t GsmPPPOS_OutputCallback(ppp_pcb *pcb, const void *data, u32_t len, void *ctx)
   {
   GsmPPPOS* me = (GsmPPPOS*)ctx;
 
@@ -54,7 +54,7 @@ static u32_t GsmPPPOS_OutputCallback(ppp_pcb *pcb, u8_t *data, u32_t len, void *
   if (!me->m_mux) return 0;
 
   MyCommandApp.HexDump(TAG, "tx", (const char*)data, len);
-  return me->m_mux->tx(me->m_channel, data, len);
+  return me->m_mux->tx(me->m_channel, (uint8_t*)data, len);
   }
 
 static void GsmPPPOS_StatusCallback(ppp_pcb *pcb, int err_code, void *ctx)

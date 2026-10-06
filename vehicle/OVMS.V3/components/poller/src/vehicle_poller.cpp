@@ -231,6 +231,18 @@ bool OvmsPoller::Ready() const
   return m_parent->Ready();
   }
 
+void OvmsPoller::VehicleSignal::IncomingPollReply(const OvmsPoller::poll_job_t &job, uint8_t* data, uint8_t length)
+  {
+  }
+
+void OvmsPoller::VehicleSignal::IncomingPollError(const OvmsPoller::poll_job_t &job, int32_t code)
+  {
+  }
+
+void OvmsPoller::VehicleSignal::IncomingPollTxCallback(const OvmsPoller::poll_job_t &job, bool success)
+  {
+  }
+
 /**
  * PollSetPidList: set the default bus and the polling list to process
  *  Call this to install a new polling list or restart the list.

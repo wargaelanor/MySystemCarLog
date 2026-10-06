@@ -2047,7 +2047,9 @@ void OvmsVehicleNissanLeaf::RemoteCommandTimer()
       if (nl_remote_command_ticker == (REMOTE_COMMAND_REPEAT_COUNT - ACTIVATION_REQUEST_TIME))
         {
         // release EV SYSTEM ACTIVATION REQUEST
+#ifdef CONFIG_OVMS_COMP_MAX7317
         MyPeripherals->m_max7317->Output((uint8_t)cfg_ev_request_port, 0);
+#endif
         ESP_LOGI(TAG, "EV SYSTEM ACTIVATION REQUEST OFF");
         }
       }
@@ -2582,7 +2584,9 @@ OvmsVehicle::vehicle_command_t OvmsVehicleNissanLeaf::CommandWakeupZE0()
   }
 
   // Use the configured pin to wake up GEN 1 Leaf with EV SYSTEM ACTIVATION REQUEST
+#ifdef CONFIG_OVMS_COMP_MAX7317
   MyPeripherals->m_max7317->Output((uint8_t)cfg_ev_request_port, 1);
+#endif
   ESP_LOGI(TAG, "ZE0 EV SYSTEM ACTIVATION REQUEST ON");
 
   return Success;

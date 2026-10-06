@@ -38,6 +38,7 @@ static const char *TAG = "module";
 #include "freertos/FreeRTOSConfig.h"
 #include "esp_heap_caps.h"
 #include <esp_system.h>
+#include "esp_rom_sys.h"
 #include "ovms_module.h"
 #include "ovms_peripherals.h"
 #include "ovms_events.h"
@@ -949,7 +950,7 @@ bool module_check_heap_integrity(char* buf, size_t size)
   // capture ets_printf() output:
   capture_buf = buf;
   capture_size = size;
-  ets_install_putc1(capture_putc);
+  esp_rom_install_channel_putc(1, capture_putc);
 
   // run heap integrity check:
   heapok = heap_caps_check_integrity_all(true);
@@ -958,7 +959,7 @@ bool module_check_heap_integrity(char* buf, size_t size)
   *capture_buf = 0;
 
   // restore ets_printf() default:
-  ets_install_uart_printf();
+  esp_rom_install_uart_printf();
   capture_buf = NULL;
   capture_size = 0;
   
@@ -1111,7 +1112,7 @@ static void module_trace_dump(char* buf, size_t size)
   // capture ets_printf() output:
   capture_buf = buf;
   capture_size = size;
-  ets_install_putc1(capture_putc);
+  esp_rom_install_channel_putc(1, capture_putc);
 
   // dump heap tracing status:
   heap_trace_dump();
@@ -1120,7 +1121,7 @@ static void module_trace_dump(char* buf, size_t size)
   *capture_buf = 0;
 
   // restore ets_printf() default:
-  ets_install_uart_printf();
+  esp_rom_install_uart_printf();
   capture_buf = NULL;
   capture_size = 0;
   

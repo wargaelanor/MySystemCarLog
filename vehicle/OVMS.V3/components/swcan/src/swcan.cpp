@@ -55,7 +55,7 @@ void swcan::Init()
     ESP_LOGI(TAG, "can3: Shutdown.");
   }
   if(!MyPeripherals->m_mcp2515_swcan)
-    MyPeripherals->m_mcp2515_swcan = new swcan("can4", MyPeripherals->m_spibus, VSPI_HOST, 10000000, VSPI_PIN_MCP2515_SWCAN_CS, VSPI_PIN_MCP2515_SWCAN_INT);
+    MyPeripherals->m_mcp2515_swcan = new swcan("can4", MyPeripherals->m_spibus, SPI3_HOST, 10000000, VSPI_PIN_MCP2515_SWCAN_CS, VSPI_PIN_MCP2515_SWCAN_INT);
 }
 
 swcan::swcan(const char* name, spi* spibus, spi_host_device_t host, int clockspeed, int cspin, int intpin, bool hw_cs /*=true*/, bool leds  /*=false*/)

@@ -43,7 +43,7 @@ spi::spi(const char* name, int misopin, int mosipin, int clkpin)
   m_buscfg.sclk_io_num=clkpin;
   m_buscfg.quadwp_io_num=-1;
   m_buscfg.quadhd_io_num=-1;
-  m_host = SPI_HOST;        //  CSW  not yet assgined
+  m_host = SPI3_HOST;        //  CSW  not yet assgined
   m_initialized = false;
   }
 

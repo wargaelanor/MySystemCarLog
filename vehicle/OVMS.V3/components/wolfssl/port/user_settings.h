@@ -13,7 +13,8 @@
 
 //#define DEBUG_WOLFSSL
 #define WOLFSSL_ESPIDF
-#define WOLFSSL_ESPWROOM32
+// WOLFSSL_ESPWROOM32 would enable ESP32-only hardware crypto (not available on ESP32-S3)
+//#define WOLFSSL_ESPWROOM32
 // The above two imply:
 //    #define FREERTOS
 //    #define WOLFSSL_LWIP

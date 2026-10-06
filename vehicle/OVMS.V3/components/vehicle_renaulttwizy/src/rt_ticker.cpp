@@ -271,9 +271,17 @@ void OvmsVehicleRenaultTwizy::Ticker1(uint32_t ticker)
     // and charge power level has not been limited by the user:
     if (cfg_aux_charger_port) {
       if ((twizy_chargestate == 1) && (twizy_soc < 9400) && (cfg_chargelevel == 0))
+#ifdef CONFIG_OVMS_COMP_MAX7317
         MyPeripherals->m_max7317->Output(cfg_aux_charger_port, 1);
+#else
+        (void)0;
+#endif
       else
+#ifdef CONFIG_OVMS_COMP_MAX7317
         MyPeripherals->m_max7317->Output(cfg_aux_charger_port, 0);
+#else
+        (void)0;
+#endif
     }
     
     // END OF STATE: CHARGING
@@ -287,7 +295,11 @@ void OvmsVehicleRenaultTwizy::Ticker1(uint32_t ticker)
 
     // Switch off additional charger:
     if (cfg_aux_charger_port) {
+#ifdef CONFIG_OVMS_COMP_MAX7317
       MyPeripherals->m_max7317->Output(cfg_aux_charger_port, 0);
+#else
+      (void)0;
+#endif
     }
 
     // Calculate range:
@@ -489,14 +501,18 @@ void OvmsVehicleRenaultTwizy::Ticker10(uint32_t ticker)
   if (cfg_aux_fan_port) {
     if (twizy_flags.CarAwake || twizy_flags.Charging) {
       if (StdMetrics.ms_v_charge_temp->AsFloat() > TWIZY_FAN_THRESHOLD) {
+#ifdef CONFIG_OVMS_COMP_MAX7317
         MyPeripherals->m_max7317->Output(cfg_aux_fan_port, 1);
+#endif
         if (twizy_fan_timer == 0)
           ESP_LOGW(TAG, "charger temperature %.1f celcius; extra fan switched ON",
             StdMetrics.ms_v_charge_temp->AsFloat());
         twizy_fan_timer = TWIZY_FAN_OVERSHOOT * 6;
       }
       else if (StdMetrics.ms_v_charge_temp->AsFloat() < TWIZY_FAN_THRESHOLD) {
+#ifdef CONFIG_OVMS_COMP_MAX7317
         MyPeripherals->m_max7317->Output(cfg_aux_fan_port, 0);
+#endif
         if (twizy_fan_timer != 0)
           ESP_LOGI(TAG, "charger temperature %.1f celcius; extra fan switched OFF",
             StdMetrics.ms_v_charge_temp->AsFloat());
@@ -505,7 +521,9 @@ void OvmsVehicleRenaultTwizy::Ticker10(uint32_t ticker)
     }
     else {
       if (twizy_fan_timer > 0 && --twizy_fan_timer == 0) {
+#ifdef CONFIG_OVMS_COMP_MAX7317
         MyPeripherals->m_max7317->Output(cfg_aux_fan_port, 0);
+#endif
         if (twizy_fan_timer != 0)
           ESP_LOGI(TAG, "charger extra fan overshoot end; switched OFF");
       }

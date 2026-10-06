@@ -1288,11 +1288,11 @@ int OvmsNetManager::CleanupConnections()
 
     // find interface:
     struct netif *ni = NULL;
-    for (auto candidate : netiflist)
+    for (size_t i = 0; i < netiflist.size(); i++)
       {
-      if (sa.sin.sin_addr.s_addr == ip4_addr_get_u32(netif_ip4_addr(&candidate)))
+      if (sa.sin.sin_addr.s_addr == ip4_addr_get_u32(netif_ip4_addr(&netiflist[i])))
         {
-        ni = &candidate;
+        ni = &netiflist[i];
         break;
         }
       }

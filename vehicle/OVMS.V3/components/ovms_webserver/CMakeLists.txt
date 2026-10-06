@@ -17,8 +17,6 @@ idf_component_register(SRCS ${srcs}
 
 if (CONFIG_OVMS_SC_GPL_MONGOOSE AND CONFIG_OVMS_COMP_WEBSERVER)
 
-find_package(Perl REQUIRED)
-
 function(concat_to_from destination)
   set(source ${ARGN})
   # Any modification of the source files (individual unconcatened files) will trigger a CMake reconfigure
@@ -26,8 +24,7 @@ function(concat_to_from destination)
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${source}")
   message(STATUS "ovms_webserver: Writing ${destination} from concatenation of: ${source}" )
   execute_process(
-    COMMAND cat ${source}
-    COMMAND dos2unix
+    COMMAND ${CMAKE_COMMAND} -E cat ${source}
     OUTPUT_FILE ${destination}
   )
 endfunction()
@@ -35,9 +32,7 @@ endfunction()
 function(compress_to_from destination source)
   message(STATUS "ovms_webserver: Compressing ${source} to: ${destination}" )
   execute_process(
-    COMMAND cat ${source}
-    COMMAND gzip -9 --to-stdout
-    OUTPUT_FILE ${destination}
+    COMMAND ${PYTHON_EXECUTABLE} -c "import gzip,sys; sys.stdout.write('') if False else open(sys.argv[2],'wb').write(gzip.compress(open(sys.argv[1],'rb').read(),9))" ${source} ${destination}
   )
 endfunction()
 
@@ -48,11 +43,7 @@ function(write_mtime_header)
     math(EXPR argj "${argi}+1")
     list(GET ARGV ${argj} filename)
     message(STATUS "ovms_webserver: Recording modification time for: ${filename}" )
-    execute_process(
-      COMMAND perl -e "print +(stat \"${filename}\")[9]"
-      OUTPUT_VARIABLE ${define}
-      OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+    file(TIMESTAMP ${filename} ${define} "%s" UTC)
     component_compile_definitions("${define}=${${define}}LL")
   endforeach()
 endfunction()

@@ -32,6 +32,7 @@
 #include <cinttypes>
 #include <esp_system.h>
 #include <esp_ota_ops.h>
+#include <esp_flash.h>
 #include <esp_spi_flash.h>
 #include "esp_vfs_fat.h"
 #include "wear_levelling.h"
@@ -67,6 +68,7 @@ const char* ovms_partition_type_name(esp_partition_type_t type)
     {
     case ESP_PARTITION_TYPE_APP:   return "app";
     case ESP_PARTITION_TYPE_DATA:  return "data";
+    default: break;
     }
 
   static char unknown_type[12];
@@ -137,7 +139,7 @@ size_t ovms_partition_table_find(void)
   ovms_esp_partition_t buffer;
   for (size_t addr = 0x8000; addr < 0xA000; addr += 0x1000)
     {
-    esp_err_t err = spi_flash_read(addr, (uint8_t*)&buffer, sizeof(buffer));
+    esp_err_t err = esp_flash_read(NULL, (uint8_t*)&buffer, addr, sizeof(buffer));
     ESP_LOGD(TAG, "Checking partition table at 0x%04x found magic 0x%04x", addr, (uint16_t)buffer.magic_id);
     if (err != ESP_OK) continue;
     if (buffer.magic_id == PARTITION_ENTRY_MAGIC)
@@ -166,7 +168,7 @@ ovms_esp_partition_t* ovms_partition_table_read(size_t offset, bool useinternalr
     return NULL;
      }
   esp_err_t err =
-    spi_flash_read(offset, buffer, PARTITION_TABLE_BLOCK_SIZE);
+    esp_flash_read(NULL, buffer, offset, PARTITION_TABLE_BLOCK_SIZE);
   if (err != ESP_OK)
     {
     ESP_LOGE(TAG, "Failed to read partition table: 0x%x", err);
@@ -389,7 +391,7 @@ bool ovms_partition_table_upgrade_store(OvmsWriter* writer)
 
     // Erase the region to ensure a clean start with auto reformatting on mount
     writer->printf("Erasing store2 data (%" PRId32 " bytes)...\n", p->data.entry.size);
-    if (spi_flash_erase_range(p->data.entry.address, p->data.entry.size) != ESP_OK)
+    if (esp_flash_erase_region(NULL, p->data.entry.address, p->data.entry.size) != ESP_OK)
       {
       writer->puts("Warning: erasing store2 data failed, may need manual erase/reflash if formatting fails");
       // This is only an issue if store2 is also corrupted and doesn't trigger a reformat
@@ -1236,7 +1238,7 @@ bool ovms_partition_table_rewrite(ovms_esp_partition_t* table, OvmsWriter* write
     }
 
   if (writer) writer->printf("Erasing old partition table (%d bytes at 0x%08zx)...\n", (int)PARTITION_TABLE_BLOCK_SIZE, offset);
-  esp_err_t err = spi_flash_erase_range(offset, PARTITION_TABLE_BLOCK_SIZE);
+  esp_err_t err = esp_flash_erase_region(NULL, offset, PARTITION_TABLE_BLOCK_SIZE);
   if (err != ESP_OK)
     {
     if (writer)writer->printf("Error: Failed to erase old partition table: %s\n", esp_err_to_name(err));
@@ -1244,7 +1246,7 @@ bool ovms_partition_table_rewrite(ovms_esp_partition_t* table, OvmsWriter* write
     }
 
   if (writer) writer->printf("Writing new partition table (%d bytes at 0x%08zx)...\n", (int)PARTITION_TABLE_BLOCK_SIZE, offset);
-  err = spi_flash_write(offset, table, PARTITION_TABLE_BLOCK_SIZE);
+  err = esp_flash_write(NULL, table, offset, PARTITION_TABLE_BLOCK_SIZE);
   if (err != ESP_OK)
     {
     if (writer) writer->printf("Error: Failed to write new partition table: %s\n", esp_err_to_name(err));

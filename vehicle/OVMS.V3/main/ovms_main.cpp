@@ -36,22 +36,16 @@ static class FrameworkInit
         CONFIG_LOG_DEFAULT_LEVEL == 1 ? "ERROR" : "None");
       esp_log_level_set("*",(esp_log_level_t)CONFIG_LOG_DEFAULT_LEVEL);
 
+#if ESP_IDF_VERSION_MAJOR >= 5
+      ESP_LOGI(TAG, "Task watchdog initialization deferred to app_main");
+#else
 #if !WDT_ALREADY_INITIALIZED
       ESP_LOGI(TAG, "Initialising WATCHDOG...");
-#if ESP_IDF_VERSION_MAJOR >= 5
-      // If the TWDT was not initialized automatically on startup, manually intialize it now
-      esp_task_wdt_config_t config = {
-          .timeout_ms = 120 * 1000,
-          .idle_core_mask = 0,
-          .trigger_panic = true,
-      };
-      ESP_ERROR_CHECK(esp_task_wdt_init(&config));
-#else
       esp_task_wdt_init(120, true);
-#endif
 #else
       ESP_LOGI(TAG, "WATCHDOG already initialized...");
 #endif // WDT_ALREADY_INITIALIZED
+#endif
       }
   } fwi  __attribute__ ((init_priority (0150)));
 
@@ -60,6 +54,19 @@ Peripherals* MyPeripherals = NULL;
 
 void app_main(void)
   {
+#if ESP_IDF_VERSION_MAJOR >= 5
+  esp_task_wdt_config_t wdt_config = {
+      .timeout_ms = 120 * 1000,
+      .idle_core_mask = 0,
+      .trigger_panic = true,
+  };
+  esp_err_t wdt_err = esp_task_wdt_init(&wdt_config);
+  if (wdt_err == ESP_ERR_INVALID_STATE)
+    ESP_LOGI(TAG, "Task watchdog already initialized by ESP-IDF");
+  else
+    ESP_ERROR_CHECK(wdt_err);
+#endif
+
   if (nvs_flash_init() == ESP_ERR_NVS_NO_FREE_PAGES)
     {
     nvs_flash_erase();
