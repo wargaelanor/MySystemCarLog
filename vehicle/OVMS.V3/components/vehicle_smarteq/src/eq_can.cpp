@@ -70,7 +70,14 @@ void OvmsVehicleSmartEQ::IncomingFrameCan1(CAN_frame_t* p_frame) {
     case 0x350:
       {
       REQ_DLC(7);
-      can_awake = (CAN_BYTE(0) > 0xC0);
+      can_350_ticker = SQ_CANDATA_TIMEOUT;      
+      // if "TECHNICAL WAKE UP" and we were previously asleep, then start 10sec. cooldown polling to wait for car to fully wake up before we start polling for data
+      if ((CAN_BYTE(0) > 0xC0) && !can_awake) 
+        {
+        smartCoolDownPolling();
+        }
+      can_awake = (CAN_BYTE(0) > 0xC1);
+      can_battery_on = (CAN_BYTE(0) > 0xC2);
       can_env_on = (CAN_BYTE(0) > 0xC4);
       can_locked = (CAN_BYTE(6) == 0x96);
       int code = CAN_BYTE(0);
@@ -106,26 +113,26 @@ void OvmsVehicleSmartEQ::IncomingFrameCan1(CAN_frame_t* p_frame) {
       {
       REQ_DLC(5);
       uint8_t raw_temp = (c >> 13) & 0x7Fu;
-      float _temp = (float)raw_temp - 40.0f;      
-      // Ignore invalid sensor reading (0x7F = 127 → 87°C after offset)
-      if (raw_temp != 0x7F) 
-        {
-        can_bat_temp = _temp;
-        }      
-      can_bat_voltage = (float)((CAN_UINT(3) >> 5) & 0x3FF) / 2.0f;
+      float _temp = (float)raw_temp - 40.0f;
+      if (_temp < 85.0f)
+        can_bat_temp = _temp;    // Ignore invalid sensor reading
+      float _volt = (float)((CAN_UINT(3) >> 5) & 0x3FF) / 2.0f;
+      if (_volt < 450.0f) 
+        can_bat_voltage = _volt; // ignore invalid voltage reading > 450V
       can_charge_climit = (c >> 20) & 0x3Fu;        
       break;
       }
     case 0x4F8:
       REQ_DLC(3);
       can_handbrake = (CAN_BYTE(0) & 0x08) > 0;
-      //can_awake = (CAN_BYTE(0) & 0x40) > 0; // Ignition on
       break;
     case 0x5D7: // Speed, ODO
       {
       REQ_DLC(6);
-      // Apply scaling 
-      can_speed = (float)CAN_UINT(0) / 100.0f;
+      // Apply scaling
+      float _speed = (float)CAN_UINT(0) / 100.0f;
+      if (_speed < 200.0f) 
+        can_speed = _speed;    // ignore invalid speed reading > 200km/h
       can_odometer = (float)(CAN_UINT32(2)>>4) / 100.0f;
       can_odometer_trip = (float)(CAN_UINT(4)>>4) / 100.0f;
       break;
@@ -182,7 +189,7 @@ void OvmsVehicleSmartEQ::IncomingFrameCan1(CAN_frame_t* p_frame) {
       {
       REQ_DLC(4);
       float _soc = (float) CAN_BYTE(3);
-      if (_soc <= 100.0f) can_soc = _soc; // SOC
+      if (_soc <= 100.0f && _soc >= 0.1f) can_soc = _soc; // SOC
       can_chargeport = (CAN_BYTE(0) & 0x20) != 0; // ChargingPlugConnected
       can_duration_full = (((c >> 22) & 0x3FFu) < 0x3FF) ? (c >> 22) & 0x3FFu : 0;
       float _range_est = ((c >> 12) & 0x3FFu); // VehicleAutonomy
@@ -204,16 +211,7 @@ void OvmsVehicleSmartEQ::IncomingFrameCan1(CAN_frame_t* p_frame) {
     case 0x658:
       {
       REQ_DLC(6);
-      uint32_t bat_serial = CAN_UINT32(0);
-      
-      // Store battery serial number (only if not already set or changed)
-      static uint32_t last_bat_serial = 0;
-      if (bat_serial != 0 && bat_serial != 0xFFFFFFFF && bat_serial != last_bat_serial) {
-        char serial_str[12];
-        snprintf(serial_str, sizeof(serial_str), "%08X", bat_serial);
-        mt_bat_serial->SetValue(serial_str);
-        last_bat_serial = bat_serial;
-      }
+      can_bat_serial = (uint32_t)CAN_UINT32(0);
       float _soh = (float)(CAN_BYTE(4) & 0x7Fu);
       if (_soh <= 100.0f) can_soh = _soh; // SOH
       can_bat_health =
@@ -227,8 +225,8 @@ void OvmsVehicleSmartEQ::IncomingFrameCan1(CAN_frame_t* p_frame) {
       }
     case 0x673:
       {
-      // TPMS pressure values only used, when CAN write is disabled, otherwise utilize PollReply_TPMS_InputCapt
-      if (!IsCANwrite() || !m_obdii_745_tpms)
+      // TPMS pressure values only used, when CAN bus is in LISTEN mode, otherwise utilize PollReply_TPMS_InputCapt
+      if (IsOnEQ() && (!canCANbusActive() || !m_obdii_745_tpms))
         {
         REQ_DLC(6);
         // Read TPMS pressure values:
@@ -258,13 +256,7 @@ void OvmsVehicleSmartEQ::IncomingFrameCan1(CAN_frame_t* p_frame) {
 
 // Sync CAN datapoints to OVMS metrics, called by Ticker1, because CAN refresh rate is too high
 void OvmsVehicleSmartEQ::smartCAN2Metrics()
-{  
-  if (IsAwakeByCanEQ())
-    {
-    mt_bus_awake->SetValue(true);
-    m_candata_poll = true;
-    m_candata_timer = SQ_CANDATA_TIMEOUT;
-    }
+{
   if (m_cmd_locked && !can_locked)
     {
     // prevent desync of command lock and actual lock status    
@@ -275,12 +267,13 @@ void OvmsVehicleSmartEQ::smartCAN2Metrics()
     StdMetrics.ms_v_env_locked->SetValue(can_locked);
     }
   StdMetrics.ms_v_env_on->SetValue(can_env_on);
-  StdMetrics.ms_v_env_awake->SetValue(can_awake);
+  StdMetrics.ms_v_env_awake->SetValue(IsAwakeEQ());
   StdMetrics.ms_v_env_hvac->SetValue(can_hvac);
   StdMetrics.ms_v_env_handbrake->SetValue(can_handbrake);
   StdMetrics.ms_v_env_headlights->SetValue(can_headlights);
   StdMetrics.ms_v_env_gear->SetValue(can_gear);
   StdMetrics.ms_v_env_cabintemp->SetValue(can_cabintemp);
+  StdMetrics.ms_v_env_charging12v->SetValue(Is12VchargeEQ());
 
   StdMetrics.ms_v_door_fl->SetValue(can_door_fl);
   StdMetrics.ms_v_door_fr->SetValue(can_door_fr);
@@ -322,4 +315,7 @@ void OvmsVehicleSmartEQ::smartCAN2Metrics()
   if(can_trip_energy < 3000.0f) // prevent unrealistic values based on faulty readings
     mt_reset_energy->SetValue(can_trip_energy);
   mt_reset_speed->SetValue(can_avg_speed);
+  char serial_str[16];
+  snprintf(serial_str, sizeof(serial_str), "%u", can_bat_serial);
+  mt_bat_serial->SetValue(serial_str);
 }

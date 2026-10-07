@@ -594,6 +594,38 @@ void OvmsWebServer::EventHandler(mg_connection *nc, int ev, void *p)
       }
       break;
 
+#if MG_ENABLE_HTTP_STREAMING_MULTIPART && defined(CONFIG_OVMS_COMP_OTA)
+    case MG_EV_HTTP_MULTIPART_REQUEST:      // start of a streamed multipart upload
+      {
+        // No handler attached yet: dispatch by URI & re-check auth here, because
+        // multipart requests never pass through FindPage()/PageEntry::Serve().
+        struct http_message *hm = (struct http_message *) p;
+        std::string uri(hm->uri.p, hm->uri.len);
+        if (uri == "/api/firmware/upload") {
+          if (!MyWebServer.AuthorizeMultipart(hm)) {
+            ESP_LOGW(TAG, "Firmware upload: unauthorized");
+            mg_http_send_error(nc, 401, "Unauthorized");
+            nc->flags |= MG_F_SEND_AND_CLOSE;
+          }
+          else {
+            // The client passes the image size as ?size=<bytes> so the OTA layer
+            // erases only what's needed (faster start) instead of the whole partition:
+            size_t size = 0;
+            char sizebuf[24];
+            if (mg_get_http_var(&hm->query_string, "size", sizebuf, sizeof(sizebuf)) > 0)
+              size = (size_t) strtoul(sizebuf, NULL, 10);
+            ESP_LOGI(TAG, "Firmware upload: authorized, receiving image (size=%u)", (unsigned) size);
+            new HttpFirmwareUpload(nc, size);   // attaches itself to nc->user_data
+          }
+        }
+        else {
+          mg_http_send_error(nc, 404, "Not found");
+          nc->flags |= MG_F_SEND_AND_CLOSE;
+        }
+      }
+      break;
+#endif // MG_ENABLE_HTTP_STREAMING_MULTIPART && defined(CONFIG_OVMS_COMP_OTA)
+
     case MG_EV_CLOSE:                       // connection has been closed
       {
         if (handler) {
@@ -825,58 +857,6 @@ int HttpDataSender::HandleEvent(int ev, void* p)
           m_nc->flags |= MG_F_SEND_AND_CLOSE;
         mg_send_http_chunk(m_nc, "", 0);
         ESP_EARLY_LOGV(TAG, "HttpDataSender[%p]: done", m_nc);
-        delete this;
-      }
-    }
-    break;
-
-    default:
-      break;
-  }
-
-  return ev;
-}
-
-
-/**
- * HttpStringSender: chunked transfer of a memory region (needs to be const during xfer)
- */
-HttpStringSender::HttpStringSender(mg_connection* nc, std::string* msg, bool keepalive /*=true*/)
-  : MgHandler(nc)
-{
-  m_msg = msg;
-  m_sent = 0;
-  m_keepalive = keepalive;
-  ESP_EARLY_LOGV(TAG, "HttpStringSender[%p]: init msg=%p, %d bytes", nc, m_msg, m_msg->size());
-}
-
-HttpStringSender::~HttpStringSender()
-{
-  if (m_sent < m_msg->size()) {
-    ESP_EARLY_LOGV(TAG, "HttpStringSender[%p]: abort msg=%p, %d bytes sent", m_nc, m_msg, m_sent);
-  }
-  delete m_msg;
-}
-
-int HttpStringSender::HandleEvent(int ev, void* p)
-{
-  switch (ev)
-  {
-    case MG_EV_SEND:          // last transmission has finished
-    {
-      if (m_sent < m_msg->size()) {
-        // send next chunk:
-        size_t len = MIN(m_msg->size() - m_sent, XFER_CHUNK_SIZE);
-        mg_send_http_chunk(m_nc, (const char*) m_msg->data() + m_sent, len);
-        m_sent += len;
-        ESP_EARLY_LOGV(TAG, "HttpStringSender[%p] msg=%p sent %d/%d", m_nc, m_msg, m_sent, m_msg->size());
-      }
-      else {
-        // done:
-        if (!m_keepalive)
-          m_nc->flags |= MG_F_SEND_AND_CLOSE;
-        mg_send_http_chunk(m_nc, "", 0);
-        ESP_EARLY_LOGV(TAG, "HttpStringSender[%p]: done msg=%p, %d bytes sent", m_nc, m_msg, m_sent);
         delete this;
       }
     }

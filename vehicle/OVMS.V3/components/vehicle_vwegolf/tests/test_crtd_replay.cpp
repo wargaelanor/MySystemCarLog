@@ -1,9 +1,10 @@
 // test_crtd_replay.cpp — Feed a real CRTD capture through the decode pipeline.
 //
-// Reads candumps/kcan-capture.crtd (relative to the tests/ directory), builds
-// CAN_frame_t objects from each data line, and dispatches them to the vehicle
-// module exactly as the OVMS runtime would.  After the replay we check that
-// the metrics contain plausible values derived from the real capture.
+// Replays the committed synthetic KCAN fixture (candumps/kcan-synthetic.crtd,
+// relative to the tests/ directory) by default, building CAN_frame_t objects from
+// each data line and dispatching them to the vehicle module exactly as the OVMS
+// runtime would.  After the replay we check that the metrics hold the expected
+// values. Set VWEGOLF_CRTD=<path> to replay a real capture during local dev.
 
 #include "mock/mock_ovms.hpp"
 #include "../src/vehicle_vwegolf.h"
@@ -90,11 +91,9 @@ static int replay_crtd(OvmsVehicleVWeGolf* v, const char* path) {
         }
         frame.FIR.B.DLC = dlc;
 
-        if (bus == 2) {
-            // J533 bridges KCAN onto CAN2; IncomingFrameCan2 handles the FCAN-specific
-            // IDs (0x187, 0x6B4) then forwards everything to IncomingFrameCan3.
-            v->IncomingFrameCan2(&frame);
-        } else if (bus == 3) {
+        if (bus == 3) {
+            // KCAN is the only bus the module taps: everything it reads (incl. gear 0x187 and
+            // VIN 0x6B4) is gatewayed onto KCAN, so IncomingFrameCan3 decodes all of it.
             v->IncomingFrameCan3(&frame);
         } else {
             continue;
@@ -116,10 +115,13 @@ void test_crtd_replay() {
     g_metrics = MetricStore{};
     auto* v = new OvmsVehicleVWeGolf();
 
-    // Prefer the real capture (not committed, developer only); fall back to the
-    // committed synthetic fixture so the test runs in CI without real car data.
+    // Deterministic by default: the push-gate hook and CI replay the committed
+    // synthetic fixture, never a developer-local capture. Set VWEGOLF_CRTD=<path>
+    // to replay a real capture during local development (falls back to the
+    // synthetic fixture if the path can't be read).
+    const char* env_path = getenv("VWEGOLF_CRTD");
     const char* candidates[] = {
-        "candumps/kcan-capture.crtd",
+        env_path ? env_path : "candumps/kcan-synthetic.crtd",
         "candumps/kcan-synthetic.crtd",
     };
     const char* used_path = nullptr;
@@ -149,8 +151,8 @@ void test_crtd_replay() {
     int gear = StandardMetrics.ms_v_env_gear->AsValue();
     CHECK(gear == 0, "Gear = 0 (Park)");
 
-    // VIN (0x6B4) is decoded in IncomingFrameCan2 (FCAN), not IncomingFrameCan3.
-    // This CRTD capture is KCAN-only so VIN is not exercised here; see test_vin_0x6B4().
+    // VIN (0x6B4) is decoded in IncomingFrameCan3 (KCAN). The synthetic fixture has no VIN
+    // frames, so VIN is not exercised here; see test_vin_0x6B4() for that path.
 
     delete v;
 }

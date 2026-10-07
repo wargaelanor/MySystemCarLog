@@ -150,16 +150,18 @@ class modem : public pcp, public InternalRamAllocated
     std::string            m_line_buffer;
     network_registration_t m_netreg;
     network_registration_t m_netreg_d[CELLULAR_NETREG_COUNT];
+    int                    m_netreg_retry_ticks;
+    bool                   m_net_type_auto_override;
     std::string            m_provider;
     int                    m_sq;
     bool                   m_pincode_required;
 
     uart_port_t            m_uartnum;
-    int                    m_err_uart_fifo_ovf;
-    int                    m_err_uart_buffer_full;
-    int                    m_err_uart_parity;
-    int                    m_err_uart_frame;
-    int                    m_err_driver_buffer_full;
+    unsigned int           m_err_uart_fifo_ovf;
+    unsigned int           m_err_uart_buffer_full;
+    unsigned int           m_err_uart_parity;
+    unsigned int           m_err_uart_frame;
+    unsigned int           m_err_driver_buffer_full;
 
     modemdriver*           m_driver;
     std::string            m_model;
@@ -181,9 +183,11 @@ class modem : public pcp, public InternalRamAllocated
     bool                   m_gps_enabled;           // = config modem enable.gps
     gps_usermode_t         m_gps_usermode;          // manual GPS control status
     int                    m_gps_parkpause;         // = config modem gps.parkpause (seconds, 0=off)
+    int                    m_gps_holiday;           // = config modem gps.parkholiday (days, 0=off), parking days threshold to consider as holiday
     int                    m_gps_stopticker;        // Park pause countdown
     int                    m_gps_startticker;       // Re-activation countdown
     int                    m_gps_reactivate;        // = config modem gps.parkreactivate (minutes, 0=off)
+    int                    m_gps_holiday_multi;     // = config modem gps.parkholiday.multi (factor, default 3), multiplier for holiday mode
     int                    m_gps_reactlock;         // = config modem gps.reactlock (minutes, default 5)
     bool                   m_gps_awake_start;       // start GPS when vehicle awakes
     OvmsMutex              m_gps_mutex;             // lock for start/stop NMEA
@@ -243,6 +247,7 @@ class modem : public pcp, public InternalRamAllocated
     void SendSetState1(modem_state1_t newstate);
     bool IsStarted();
     void SetNetworkRegistration(network_regtype_t regtype, network_registration_t netreg);
+    void UpdateNetworkType();
     void SetProvider(std::string provider);
     void SetSignalQuality(int newsq);
     void ClearNetMetrics();

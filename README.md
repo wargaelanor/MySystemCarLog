@@ -38,6 +38,26 @@ available for **Android** and **iOS**. It integrates into home/process automatio
 provides data logging to SD card and to a server.
 
 
+## Warning
+
+![Warning](docs/source/userguide/warning_sm.png)
+
+**USE AT OWN RISK!**
+
+The OVMS is a **HOBBYIST PROJECT**, not a commercial product. It was designed by enthusiasts for enthusiasts. 
+Becoming a user means becoming part of the **project community**, not becoming a customer. Most vehicle features 
+are based on **reverse engineering** rather than OEM documentation, so no compliance with any OEM requirements 
+can be guaranteed. **Installing the module may damage your vehicle and void your vehicle warranty**. 
+Installation and use of this module **requires some technical knowledge**, and if you don't have that we 
+recommend you contact other users in your area to ask for assistance.
+
+THE SYSTEM IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO 
+THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+AUTHORS, COPYRIGHT HOLDERS, SERVICE OR HARDWARE PROVIDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, 
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SYSTEM OR 
+THE USE OR OTHER DEALINGS IN THE SYSTEM.
+
+
 ## Vehicle Support
 
 - _Native Integration_
@@ -72,9 +92,11 @@ provides data logging to SD card and to a server.
   - [Renault Zoe Phase 2](https://docs.openvehicles.com/en/latest/components/vehicle_renaultzoe_ph2/docs/index.html)
   - [Smart ED Gen.3](https://docs.openvehicles.com/en/latest/components/vehicle_smarted/docs/index.html)
   - [Smart ED/EQ Gen.4 (453)](https://docs.openvehicles.com/en/latest/components/vehicle_smarteq/docs/index.html)
+  - [Subaru Solterra](https://docs.openvehicles.com/en/latest/components/vehicle_subaru_solterra/docs/index.html)
   - [Tesla Model S](https://docs.openvehicles.com/en/latest/components/vehicle_teslamodels/docs/index.html)
   - [Tesla Roadster](https://docs.openvehicles.com/en/latest/components/vehicle_teslaroadster/docs/index.html)
   - Think City
+  - [Toyota bZ4X](https://docs.openvehicles.com/en/latest/components/vehicle_toyota_bz4x/docs/index.html)
   - [Toyota RAV4 EV](https://docs.openvehicles.com/en/latest/components/vehicle_toyotarav4ev/docs/index.html)
   - [VW e-Golf](https://docs.openvehicles.com/en/latest/components/vehicle_vwegolf/docs/index.html)
   - [VW e-Up / Skoda Citigo / Seat Mii](https://docs.openvehicles.com/en/latest/components/vehicle_vweup/docs/index.html)
@@ -82,6 +104,7 @@ provides data logging to SD card and to a server.
   - [DBC File Based](https://docs.openvehicles.com/en/latest/components/vehicle_dbc/docs/index.html)
   - [GPS Tracking](https://docs.openvehicles.com/en/latest/components/vehicle_track/docs/index.html)
   - [OBD-II Standard](https://docs.openvehicles.com/en/latest/components/vehicle_obdii/docs/index.html)
+  - [Toyota e-TNGA platform](https://docs.openvehicles.com/en/latest/components/vehicle_toyota_etnga/docs/index.html)
   - Zeva BMS
   - [ZombieVerter VCU](https://docs.openvehicles.com/en/latest/components/vehicle_zombie_vcu/docs/index.html)
 
@@ -89,6 +112,7 @@ provides data logging to SD card and to a server.
 ## Links
 
 - _User Resources_
+  - [History of Changes](https://raw.githubusercontent.com/openvehicles/Open-Vehicle-Monitoring-System-3/refs/heads/master/vehicle/OVMS.V3/changes.txt) affecting user level features & interfaces
   - _User and Developer Guides: (hint: version selection in left menu at the bottom)_
     - [Stable release (OTA version "main")](https://docs.openvehicles.com/en/stable/)
     - [Latest nightly build (OTA version "edge")](https://docs.openvehicles.com/en/latest/)
@@ -101,7 +125,7 @@ provides data logging to SD card and to a server.
     - [Medlock & Sons (North America)](https://medlockandsons.com/product/ovms-v3/)
     - [OpenEnergyMonitor (UK/Europe)](https://shop.openenergymonitor.com/ovms/)
   - _Customized Versions_
-    - [Optimized compact casing not only for Smart ED/EQ (Germany/Europe)](https://www.smart-emotion.de/shop/product/75-ovms-independent-app/)
+    - [Optimized compact casing not only for Smart ED/EQ (Germany/Europe)](https://www.smart-emotion.de/shop/product/75-ovms-independent-app/) -- **Att**: this version only supports the first two CAN buses, CAN3 and SWCAN are not supported!
 - _Servers_
   - [Asia-Pacific](https://www.openvehicles.com/)
   - [Germany/Europe](https://dexters-web.de/)
@@ -179,7 +203,7 @@ flexible base that the community can work on and extend.
 Everything is open, and APIs are public. Other car modules can talk to the server, and other Apps can show the 
 status and control the car. This is a foundation that others hopefully will interface to and and build upon.
 
-**If you'd like to contribute, please accept our code of conduct:**
+**If you'd like to contribute, accept our code of conduct:**
 
 - Introduce yourself on the developer mailing list
 - Be kind & polite
@@ -191,6 +215,7 @@ status and control the car. This is a foundation that others hopefully will inte
 - Write brief but descriptive commit comments
 - Add user level descriptions to the change history
 - Provide documentation in the user guide
+- Include manufacturer warnings and warranty exclusions that may apply upfront in the user guide
 - Use pull requests to submit your code for inclusion
 
 
@@ -220,6 +245,7 @@ inspection then turns out to be complete nonsense.
 Examples:
 - [AI not understanding STL containers or OVMS event processing](https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/pull/1294)
 - [AI not understanding code coverage and suggesting model change to fix view issue](https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/pull/1296)
+- [AI not understanding string buffer allocation](https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/pull/1402)
 
 
 **A note on pull requests:**

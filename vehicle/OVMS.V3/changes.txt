@@ -1,9 +1,145 @@
 Open Vehicle Monitor System v3 - Change log
 
 ????-??-?? ???  ???????  OTA release
+- New vehicle: Toyota e-TNGA platform, supporting the Subaru Solterra (SUBSOL) and the
+    Toyota bZ4X (TOYBZ4X) via the OBD-II port. The two vehicles are thin wrappers over a shared
+    platform module which carries the CAN polling, the charging state machine and the BMS
+    handling, so support is identical on both; only the Solterra has been confirmed on hardware.
+    Support includes:
+      VIN, SOC (displayed and BMS), speed, odometer, gear and drive mode
+      Per-cell BMS voltages and temperatures, with the pack arrangement derived from the
+        battery replies at runtime so the 96-cell and the 2025/26 refresh packs both work
+      Battery capacity and state of health (v.b.cac / v.b.soh / v.b.capacity)
+      AC and DC charging: state, type, power, station and vehicle limits, charge port state
+      Charge session reports written to disk as HTML plus a per-sample CSV
+      TPMS pressures and temperatures via the gateway relay
+      12V auxiliary battery voltage, current, temperature and capacity from the EV ECU
+      Cabin and ambient temperature, HVAC power and per-trip cabin energy
+      Throttle, brake and park brake position
+    Charge control, climate control and lock/unlock are not supported.
+  New configs:
+    - [xte] tpms.pressure.warn / .alert    -- Tyre pressure warning and alert thresholds (kPa)
+    - [xte] tpms.temp.warn / .alert        -- Tyre temperature warning and alert thresholds (C)
+    - [xte] bat.nominal.ah                 -- Pack nominal capacity in Ah, the denominator for
+                                              v.b.soh (default 0 = derive from the detected
+                                              pack, established for the 96-cell pack only)
+    - [xte] bat.nominal.volt               -- Pack nominal voltage in V, used to convert the
+                                              capacity to kWh for v.b.capacity (default 0 =
+                                              derive from the detected pack)
+- Server V3 (MQTT): added an optional liveness check that can be enabled in the web UI. When
+    enabled, the MQTT client sends a ping probe after a configured idle period and reconnects if the
+    broker remains silent beyond the timeout window. The check is off by default and can be toggled
+    from Config → Server V3.
+    [server.v3] liveness.enabled (bool, default false)
+    [server.v3] updatetime.probe (int, default: 60)
+- smart EQ: added an opt-in GPS history log for driving position/vehicle data. 
+  This feature is disabled by default and must be explicitly enabled by the user from the vehicle web UI, 
+  so personal location data is not logged unless the user intentionally enables it.
+  For OVMS Connect App, this option improves tracking and fills in the waypoints if the connection to the PyOVMS V3 server has been interrupted.
+- Cellular: added shell command for USSD code transmission to simplify USSD requests via V3/MQTT.
+    If a response is received, it will be forwarded as a text notification (subtype modem.received.ussd,
+    see https://docs.openvehicles.com/en/latest/userguide/notifications.html#standard-notifications)
+    Note: USSD support and codes depend on the network provider. Commonly supported are *100# or *101#
+    to query the balance and *135# to query the phone number.
+  New command:
+    cellular sendussd <code>
+- Cellular: added Web UI settings for GPS parking holiday handling.
+    New configs:
+      [modem] gps.parkholiday (days, defaul 3)            -- parking threshold after which GPS re-activation uses the holiday multiplier
+      [modem] gps.parkholiday.multi (factor, default 5)   -- multiplier applied to the GPS re-activation delay after the holiday threshold is reached
+    The GPS re-activation delay now multiplies by the configured holiday factor once the parked time exceeds the configured holiday threshold.
+- Server V2 & V3: suspend periodic reconnect attempts on authentication failures (incorrect credentials)
+    to avoid blocking of shared public IP addresses (mobile network proxies/gateways). A new reconnect
+    attempt is triggered by changing the configuration. Changing the server configuration now also
+    automatically triggers a reconnect, and the web UI assists in tracking config change results by
+    showing the respective status and start/stop buttons after a change.
+  New notifications (+ implied events):
+    - [alert] server.v2.auth.failure         -- Incorrect server V2 login credentials
+    - [alert] server.v3.auth.failure         -- Incorrect server V3 login credentials
+- VW e-Golf: set v.e.drivemode from the Charisma / Fahrprofilauswahl active profile
+    (KCAN 0x386): Normal/Eco/Eco+ -> 1/2/3 (matching the e-Up module), replacing the
+    incorrect B-gear-derived value.
+- VW e-Golf: add regenerative-braking strength metric xvg.v.recup (0..4: D0=0, D1=1,
+    D2=2, D3=3, B=4; -1 = N/A), decoded from the gear-selector frame 0x187.
+- VW e-Golf: correct v.b.current / v.b.power sign to the OVMS output=positive convention
+    (discharge positive, charge negative).
+- VW e-Golf: report charge current and power (v.c.current / v.c.power) while charging. The
+    comfort bus carries no AC charger-side telemetry, so these mirror the DC pack-side 0x191
+    measurement (sign-flipped to the charge convention) and are zeroed when charging stops.
+    The app's charge screen previously showed 0 A.
+- VW e-Golf: add charge-profile and departure-timer management over the Battery Control channel
+    (LSG 0x25). "xvg charge profile list" lists the stored charge profiles (charge locations);
+    "xvg charge profile set" edits one profile's fields (profile 0 = charge current / min SoC /
+    target temperature; charge locations 1-3 = charge/climate flags, charge current, target SoC)
+    via a read-modify-write that preserves every other stored field, with maxCurrent hard-capped.
+    "xvg charge timer list/set/enable/disable/clear" manage the recurring departure timers, each
+    bound to a charge profile. See the built-in command help for the arguments of each.
+- vehicle_cadillac_ct5:
+    Set the acceptance filter to allow 0x063 (v.on) and 0x5E4 (v.b.soc).
+    The high frame rate of this vehicle (> 1600/sec) causes watchdog
+    resets when the engine is running. Setting the acceptance filter
+    means we don't see the VIN frames but at least we're not crashing
+    over and over.
+- Fiat eDoblo: added passive lock status from CAN 0x612.
+- VW e-Golf: populate v.e.awake and v.e.on, derived from the terminal (KL_15, 0x3C0)
+    and drivetrain-READY (0x391) frames.
+- VW e-Golf: remote cabin climate control (pre-conditioning) over the KCAN comfort bus using
+    the VW BAP application protocol (bundled bap-lib) to the Battery Control unit (LSG 0x25).
+    Start/stop from the app or the standard climatecontrol command; the car runs its stored
+    global pre-conditioning profile. OVMS reads the stored global profile back and rewrites it
+    with the operation set to climate and the "Climatise on battery power" option enabled (so
+    pre-conditioning works unplugged; an allow-flag, not a force — the car still uses wall power
+    when plugged, and a charge command clears it so climate re-asserts it), every other field
+    (incl. temperature) preserved, then triggers — so the result follows the setpoint configured
+    in the car. The
+    comfort/EV cluster is woken with a CAN-NM message from a spare node id rather than
+    impersonating the factory OCU, avoiding the duplicate-node collision with the car's real
+    OCU; the command is retried until the Battery Control unit confirms it and the result is
+    reported on v.e.hvac.
+    Requires the KCAN (J533) wiring described in the user guide. Implemented in a self-contained
+    vehicle_vwegolf_bat_ctrl.cpp module (BatteryControl: climate + charge).
+- VW e-Golf: remote charge control over the same Battery Control channel (LSG 0x25), sharing the
+    climate command path (one command in flight at a time). The "charge current" command sets the
+    charge-current limit as a persistent edit of the stored global profile (snapped to the car's
+    allowed steps 5/10/13/32 A); it changes only that field and sends no start trigger. All charge
+    control acts on the global ("Optionen") immediate-charge profile only — a departure timer uses
+    its own per-timer profile, so an OVMS-set current does not apply to a timer-scheduled charge. The
+    "charge start" / "charge stop" commands arm the global profile for charging and fire the
+    immediate OperationMode trigger. The stop is op-specific (it arms the pure-charge op first, so
+    "charge stop" is blocked while climate is running — stop climate first, as the charge arm would
+    otherwise kill climate). The immediate charge start/stop trigger has no factory reference on this
+    platform (the car's own UI only edits departure timers); it is validated on a 2020 e-Golf and
+    gated (no profile read/arm -> no trigger).
+- VW e-Golf: v.e.parktime no longer clamped — the 0x6B7 CAN park-time field is 17-bit
+    (saturates at ~36.5 h), so the saturated max is ignored and OVMS's native (uncapped)
+    park-time counter is used instead.
+- OTA: Web UI firmware upload — the firmware setup page "Flash from file" tab can now upload a
+    firmware image directly from the browser and flash it to the inactive OTA partition, with no
+    SD card needed. The upload is streamed to flash (not buffered in RAM); the SD-card path flow
+    is unchanged. New endpoint: POST /api/firmware/upload (cookie/apikey authorized). A progress
+    bar tracks the upload, switching to a "finalising" indicator while the module writes the last
+    of the image to flash. The image size is sent (?size=) so only the needed flash is erased
+    (faster start) and an oversized image is rejected up front.
+- OTA: Unified the firmware setup page's flash methods (Update now, Flash from web, Flash from
+    file/SD, and the browser upload) onto one shared progress dialog: each now shows the same
+    progress bar (driven from the flash command's output for the http/SD methods), a consistent
+    success/failure state, and highlights the "Reboot now" action when a flash completes. The
+    primary action in each method is styled accordingly.
 
-
-2026-05-17 MB   3.3.006  OTA release
+2026-07-18 MB   3.3.006  OTA release
+- smart EQ:
+    As soon as the 12V trickle charge begins, a timestamp is generated and stored in `m_12v_trickle_charge_times`.
+    The counted value is set in `xsq.12v.trickle.count`.
+    Within `Ticker3600`, a routine removes all timestamps older than 24 hours and updates `xsq.12v.trickle.count` by -1.
+    New metric:
+      xsq.12v.trickle.count                  -- Count of 12V trickle-charge cycles in 24h
+    updated metric:
+      xsq.bms.contactor.cycles (vector int)  -- [0]=max, [1]=now, [2]=consumed, [3]=diff, [4]=1h_counted_changes
+    New config:
+      [xsq] bms.alert.above.cycles (int)     -- alert threshold for cycles counted; default 50000
+      [xsq] bms.contactor.1h.limit (int)     -- limit for contactor cycles changes per hour for alerting; default 8
+- OTA/firmware: include tools to mitigate 4MB firmware size limit by upgrading the partitioning scheme;
+    for details see: https://docs.openvehicles.com/en/latest/userguide/partitioning.html
 - VW e-Up: extended battery health / aging info (with web UI integration): total battery age,
     charge time counters AC/DC and parked battery state times (by SOC & temperature ranges)
     (inspired by OBD Amigos)
