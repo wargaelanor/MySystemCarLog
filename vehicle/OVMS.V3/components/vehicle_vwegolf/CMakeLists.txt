@@ -2,7 +2,9 @@ set(srcs)
 set(include_dirs)
 
 if (CONFIG_OVMS_VEHICLE_VWEGOLF)
-  list(APPEND srcs "src/vehicle_vwegolf.cpp" "src/vehicle_vwegolf_climate.cpp"
+  # DEV: upstream dc86d82da lists src/vehicle_vwegolf_climate.cpp which was never committed,
+  # and omits the real src/vehicle_vwegolf_bat_ctrl.cpp - fixed here (DEVIATIONS.md).
+  list(APPEND srcs "src/vehicle_vwegolf.cpp" "src/vehicle_vwegolf_bat_ctrl.cpp"
                    "src/bap/bap.cpp" "src/egolf/battery_control.cpp")
   list(APPEND include_dirs "src")
 endif ()

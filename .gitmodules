@@ -1,6 +1,7 @@
 [submodule "vehicle/OVMS.V3/components/mongoose/mongoose"]
 	path = vehicle/OVMS.V3/components/mongoose/mongoose
-	url = https://github.com/openvehicles/mongoose.git
+	# DEV: fork hosts ESP-IDF 5.4 compat commit (3458fbf) - see DEVIATIONS.md
+	url = https://github.com/wargaelanor/mongoose.git
 [submodule "vehicle/OVMS.V3/components/zip/zlib"]
 	path = vehicle/OVMS.V3/components/zip/zlib
 	url = https://github.com/openvehicles/zlib.git
@@ -12,4 +13,5 @@
 	url = https://github.com/openvehicles/wolfssh.git
 [submodule "vehicle/OVMS.V3/components/wolfssl/wolfssl"]
 	path = vehicle/OVMS.V3/components/wolfssl/wolfssl
-	url = https://github.com/openvehicles/wolfssl.git
+	# DEV: fork hosts ESP-IDF 5.4/ESP32-S3 compat commit (aa396c3) - see DEVIATIONS.md
+	url = https://github.com/wargaelanor/wolfssl.git

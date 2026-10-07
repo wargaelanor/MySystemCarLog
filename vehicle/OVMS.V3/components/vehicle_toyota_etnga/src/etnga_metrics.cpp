@@ -28,6 +28,7 @@
 #include "vehicle_toyota_etnga.h"
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 
 void OvmsVehicleToyotaETNGA::InitializeMetrics()
 {
