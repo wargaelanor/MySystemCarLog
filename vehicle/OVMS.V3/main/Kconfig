@@ -778,8 +778,22 @@ config OVMS_COMP_ESP32CAN
     bool "Include support for ESP32 on-board CAN controller (can1)"
     default y
     depends on OVMS
+    depends on !OVMS_COMP_TWAICAN
     help
         Enable to include support for ESP32 on-board CAN controller (can1).
+        Mutually exclusive with the TWAI based can1 backend (OVMS_COMP_TWAICAN):
+        only one backend may provide can1.
+
+config OVMS_COMP_TWAICAN
+    bool "Include support for ESP32 on-board TWAI CAN controller (can1)"
+    default n
+    depends on OVMS
+    depends on SOC_TWAI_SUPPORTED
+    help
+        Enable to include support for the on-board CAN controller (can1) using
+        the ESP-IDF TWAI driver. This is the can1 backend for chips without the
+        classic ESP32 CAN controller (e.g. ESP32-S3). Mutually exclusive with
+        OVMS_COMP_ESP32CAN: enabling this option disables the esp32can backend.
 
 config OVMS_COMP_MCP2515
     bool "Include support for MCP2515 CAN controllers (can2, can3)"

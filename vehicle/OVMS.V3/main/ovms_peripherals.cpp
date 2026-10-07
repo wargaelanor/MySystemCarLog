@@ -95,11 +95,17 @@ Peripherals::Peripherals()
 
 #ifdef CONFIG_OVMS_COMP_MCP2515
   gpio_set_direction((gpio_num_t)VSPI_PIN_MCP2515_1_CS, GPIO_MODE_OUTPUT);
+#if (VSPI_PIN_MCP2515_2_CS >= 0)
   gpio_set_direction((gpio_num_t)VSPI_PIN_MCP2515_2_CS, GPIO_MODE_OUTPUT);
+#endif // #if (VSPI_PIN_MCP2515_2_CS >= 0)
   gpio_set_direction((gpio_num_t)VSPI_PIN_MCP2515_1_INT, GPIO_MODE_INPUT);
+#if (VSPI_PIN_MCP2515_2_INT >= 0)
   gpio_set_direction((gpio_num_t)VSPI_PIN_MCP2515_2_INT, GPIO_MODE_INPUT);
+#endif // #if (VSPI_PIN_MCP2515_2_INT >= 0)
   gpio_set_level((gpio_num_t)VSPI_PIN_MCP2515_1_CS, 1); // to prevent SPI crosstalk during initialization
+#if (VSPI_PIN_MCP2515_2_CS >= 0)
   gpio_set_level((gpio_num_t)VSPI_PIN_MCP2515_2_CS, 1); // to prevent SPI crosstalk during initialization
+#endif // #if (VSPI_PIN_MCP2515_2_CS >= 0)
 #endif // #ifdef CONFIG_OVMS_COMP_MCP2515
 
 #ifdef CONFIG_OVMS_COMP_SDCARD
@@ -144,10 +150,13 @@ Peripherals::Peripherals()
   m_max7317 = new max7317("egpio", m_spibus, SPI3_HOST, 10000000, VSPI_PIN_MAX7317_CS);
 #endif // #ifdef CONFIG_OVMS_COMP_MAX7317
 
-#ifdef CONFIG_OVMS_COMP_ESP32CAN
+#if defined(CONFIG_OVMS_COMP_ESP32CAN)
   ESP_LOGI(TAG, "  ESP32 CAN");
   m_esp32can = new esp32can("can1", ESP32CAN_PIN_TX, ESP32CAN_PIN_RX);
-#endif // #ifdef CONFIG_OVMS_COMP_ESP32CAN
+#elif defined(CONFIG_OVMS_COMP_TWAICAN)
+  ESP_LOGI(TAG, "  TWAI CAN");
+  m_twai_can = new twaican("can1", ESP32CAN_PIN_TX, ESP32CAN_PIN_RX);
+#endif // #if defined(CONFIG_OVMS_COMP_ESP32CAN)
 
 #ifdef CONFIG_OVMS_COMP_WIFI
   ESP_LOGI(TAG, "  ESP32 WIFI");
@@ -168,8 +177,12 @@ Peripherals::Peripherals()
 #ifdef CONFIG_OVMS_COMP_MCP2515
   ESP_LOGI(TAG, "  MCP2515 CAN 1/2");
   m_mcp2515_1 = new mcp2515("can2", m_spibus, SPI3_HOST, 10000000, VSPI_PIN_MCP2515_1_CS, VSPI_PIN_MCP2515_1_INT);
+#if (VSPI_PIN_MCP2515_2_CS >= 0) && (VSPI_PIN_MCP2515_2_INT >= 0)
   ESP_LOGI(TAG, "  MCP2515 CAN 2/2");
   m_mcp2515_2 = new mcp2515("can3", m_spibus, SPI3_HOST, 10000000, VSPI_PIN_MCP2515_2_CS, VSPI_PIN_MCP2515_2_INT);
+#else
+  m_mcp2515_2 = NULL;
+#endif // #if (VSPI_PIN_MCP2515_2_CS >= 0) && (VSPI_PIN_MCP2515_2_INT >= 0)
 #endif // #ifdef CONFIG_OVMS_COMP_MCP2515
 
 #ifdef CONFIG_OVMS_COMP_EXTERNAL_SWCAN
@@ -185,7 +198,7 @@ Peripherals::Peripherals()
   ESP_LOGI(TAG, "  CELLULAR MODEM");
   gpio_config_t gpio_conf =
     {
-    .pin_bit_mask = BIT(MODEM_GPIO_RX),
+    .pin_bit_mask = BIT64(MODEM_GPIO_RX),
     .mode = GPIO_MODE_OUTPUT ,
     .pull_up_en = GPIO_PULLUP_ENABLE,
     .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -194,7 +207,7 @@ Peripherals::Peripherals()
   gpio_config( &gpio_conf );
   gpio_conf =
     {
-    .pin_bit_mask = BIT(MODEM_GPIO_TX),
+    .pin_bit_mask = BIT64(MODEM_GPIO_TX),
     .mode = GPIO_MODE_INPUT ,
     .pull_up_en = GPIO_PULLUP_ENABLE,
     .pull_down_en = GPIO_PULLDOWN_DISABLE,

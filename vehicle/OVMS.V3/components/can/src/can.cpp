@@ -52,6 +52,7 @@ static const char *TAG = "can";
 #include "vehicle_poller.h"
 
 #if defined(CONFIG_OVMS_COMP_ESP32CAN) || \
+    defined(CONFIG_OVMS_COMP_TWAICAN) || \
     defined(CONFIG_OVMS_COMP_MCP2515) || \
     defined(CONFIG_OVMS_COMP_EXTERNAL_SWCAN)
 static const bool includeCAN = true;

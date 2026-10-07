@@ -70,7 +70,7 @@ simcom7670::~simcom7670()
   }
 
 std::string simcom7670::GetNetTypes() {
-  return "auto 2G 3G 4G";
+  return "auto 2G 4G";
 }
 
 void simcom7670::StartupNMEA()

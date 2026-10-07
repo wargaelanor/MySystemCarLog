@@ -27,6 +27,6 @@
 #define MODEM_GPIO_TX             43      // modem RX <- ESP32 TX
 #define MODEM_GPIO_DTR            17      // modem DTR (sleep control, active low)
 #define MODEM_GPIO_PWR            15      // modem PWRKEY via NPN (active low)
-#define MODEM_GPIO_RST            16      // modem RESET (active low)
+#define MODEM_GPIO_RESET         16      // modem RESET (active low)
 #define MODEM_EGPIO_PWR           MODEM_GPIO_PWR  // no MAX7317 on T-2CAN
 #define MODEM_EGPIO_DTR           MODEM_GPIO_DTR

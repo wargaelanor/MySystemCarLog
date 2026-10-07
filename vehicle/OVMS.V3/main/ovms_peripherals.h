@@ -51,6 +51,10 @@
 #include "esp32can.h"
 #endif // #ifdef CONFIG_OVMS_COMP_ESP32CAN
 
+#ifdef CONFIG_OVMS_COMP_TWAICAN
+#include "twaican.h"
+#endif // #ifdef CONFIG_OVMS_COMP_TWAICAN
+
 #ifdef CONFIG_OVMS_COMP_MAX7317
 #include "max7317.h"
 #endif // #ifdef CONFIG_OVMS_COMP_MAX7317
@@ -161,9 +165,11 @@ class Peripherals : public InternalRamAllocated
     max7317* m_max7317;
 #endif // #ifdef CONFIG_OVMS_COMP_MAX7317
 
-#ifdef CONFIG_OVMS_COMP_ESP32CAN
+#if defined(CONFIG_OVMS_COMP_ESP32CAN)
     esp32can* m_esp32can;
-#endif // #ifdef CONFIG_OVMS_COMP_ESP32CAN
+#elif defined(CONFIG_OVMS_COMP_TWAICAN)
+    twaican* m_twai_can;
+#endif // #if defined(CONFIG_OVMS_COMP_ESP32CAN)
 
 #ifdef CONFIG_OVMS_COMP_WIFI
     esp32wifi* m_esp32wifi;
