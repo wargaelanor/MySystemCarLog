@@ -16,30 +16,35 @@ https://www.openvehicles.com/ и официальным приложением. 
 - [x] Сборка проходит после слияния (фикс дефектов апстрима vwegolf/etnga)
 - [x] Субмодули воспроизводимы: форки `wargaelanor/mongoose`, `wargaelanor/wolfssl`
       (ветка `ovms-port`, коммиты `3458fbf`/`aa396c3`), URL в `.gitmodules`
-- [ ] Пуш в MySystemCarLog без force-пуша (merge unrelated histories с «Initial commit»)
-- [ ] Чистая сборка: `rm sdkconfig && idf.py build` — свести `sdkconfig.defaults`
-      и активный `sdkconfig` (см. DEVIATIONS.md §4)
+- [x] Пуш в MySystemCarLog без force-пуша (merge unrelated histories с «Initial commit»;
+      main обновлён ff до `e002f6540`)
+- [x] Чистая сборка: `rm sdkconfig && idf.py build` — `sdkconfig.defaults` сведён с активным
+      `sdkconfig`, сборка проходит с нуля (`ovms3.bin` 0x4b99c0; BLE 4.2/5.0, ICE-обход —
+      DEVIATIONS.md §4)
 
 **Критерий:** репозиторий на GitHub содержит весь код и документацию; сборка воспроизводима с нуля.
 
 ## Фаза 1 — Bring-up железа (ESP32-S3, консоль, CAN)
 - [ ] Прошивка и загрузка, консоль через USB-Serial-JTAG
-- [ ] Карта GPIO сверена со схемой (выполнено в исследовании, `porting/hw-lilygo-t2can.md`)
-- [ ] **CAN1 (GPIO6/7): сейчас can1 не создаётся** — `CONFIG_OVMS_COMP_ESP32CAN is not set`,
-      а драйвер `esp32can` регистровый под классический ESP32 (адрес `0x3ff6b000`).
-      Решение (выбор после оценки): TWAI-бэкенд под `canbus` **или** порт `esp32can` под
-      ESP32-S3 (TWAI base `0x6002B000`) → приём/передача кадров на стендовой шине
-- [ ] **Баг: `MODEM_GPIO_RST` (t2can_can.h:30) ≠ `MODEM_GPIO_RESET` (ovms_peripherals.cpp:122)**
-      → переименовать; иначе GPIO16 модема не инициализируется
-- [ ] can3: пины -1 создают шум в логе — отключить или защитить (рекомендация агента)
+- [x] Карта GPIO сверена со схемой (выполнено в исследовании, `porting/hw-lilygo-t2can.md`)
+- [x] **CAN1 (GPIO6/7): реализован новый компонент `twaican`** (ESP-IDF TWAI driver, паттерн
+      mcp2515) + `OVMS_COMP_TWAICAN` в Kconfig (взаимное исключение с `ESP32CAN`), can1
+      создаётся в `ovms_peripherals.cpp`; сборка проходит. Осталось: приём/передача кадров
+      на стендовой шине (железо)
+- [x] **Баг: `MODEM_GPIO_RST` (t2can_can.h) → `MODEM_GPIO_RESET`** — исправлено,
+      GPIO16 RESET теперь инициализируется
+- [x] can3: пины -1 — NULL-guard в `ovms_peripherals.cpp` (`m_mcp2515_2 = NULL`, пины
+      под `#if >= 0`), шума в логе больше нет
 - [ ] MCP2515: нет RC на RESET/CS (на Module v3.3 есть) — проверить удержание уровня
 - [ ] LED/питание/датчики: отсутствующее относительно Module v3.3 (MAX7317, GPS, SD) — задокументировано
+- [ ] Проверка `BIT(44)` → `BIT64` (пины UART 43/44 не помещались в 32-битную пин-маску
+      `gpio_config`) — исправлено в коде, подтвердить на железе инициализацию UART модема
 
 **Критерий:** `can` команды shell работают на CAN1 и CAN2; модем-пины живые.
 
 ## Фаза 2 — Модем SIMCOM A7670E-LASE
-- [ ] **Фикс: `GetNetTypes()` (simcom_7670.cpp:73) → `"auto 2G 4G"`** (у A7670 нет 3G,
-      поиск 3G может зависать — `porting/hw-a7670e.md`)
+- [x] **Фикс: `GetNetTypes()` (simcom_7670.cpp) → `"auto 2G 4G"`** — исправлено
+      (у A7670 нет 3G, поиск 3G может зависать — `porting/hw-a7670e.md`)
 - [ ] PWRKEY: схема T-2CAN подаёт уровень как есть — сверить с A7670 (нужен инверсный
       open-collector, см. отчёт), проверить наличие/отсутствие NPN на плате
 - [ ] Уровни UART: A7670 = 1.8 В, ESP32-S3 = 3.3 В — сверить буферы платы

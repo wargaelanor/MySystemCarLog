@@ -73,3 +73,51 @@ commit `0dbce1e`, detached HEAD). В рабочей копии уже найде
 ### Документация
 - Созданы: `porting/DEVIATIONS.md`, 4 отчёта агентов; обновлены `PLAN.md`, `DEVIATIONS.md`.
 - `*.avif`, `Qwen_text_*.txt` (бриф прошлой сессии) — в `.git/info/exclude`, не коммитятся.
+
+### Пуш в MySystemCarLog (Фаза 0 закрыта, кроме чистой сборки)
+- `README.md`: конфликт add/add при слиянии с «Initial commit» → оставлен апстримовский OVMS README (принцип минимальных отклонений), коммит `e002f6540`.
+- `git push origin port/lilygo-t2can` → ветка на GitHub; `git push port/lilygo-t2can:main` → main обновлён ff: `c761f2ca0..e002f6540`. Без force.
+- Остаток Фазы 0: чистая сборка (`rm sdkconfig && idf.py build`) — делегируется после сверки sdkconfig.defaults.
+
+---
+
+## 2026-10-07 — Сессия 3: CAN1 (twaican), фиксы под железо, чистая сборка (техлид)
+
+### Делегирование
+- **Агент A (general): CAN1-бэкенд** — новый компонент `components/twaican/` (ESP-IDF TWAI
+  driver, паттерн mcp2515: alert task + очередь + one-TX-in-flight, ~555 строк), правки
+  `main/Kconfig` (`OVMS_COMP_TWAICAN`, взаимное исключение с `ESP32CAN`), `can.cpp`
+  (`includeCAN`), `ovms_peripherals.h/.cpp` (can1 через twaican, NULL-guard can3).
+  Техлид провёл ревью диффов — принято (`m_tx_frame` пишется в `canbus::Write` can.cpp:1475;
+  `m_mcp2515_2->` нигде не разыменовывается).
+- `@jeff` упёрся в лимит шагов на механике → правки `t2can_can.h`/`simcom_7670.cpp` выполнены
+  техлидом самостоятельно.
+
+### Исправления
+- `MODEM_GPIO_RST → MODEM_GPIO_RESET` (t2can_can.h) — выражение `ovms_peripherals.cpp:128-130`
+  теперь активно (GPIO16 RESET модема).
+- `GetNetTypes()` → `"auto 2G 4G"` (simcom_7670.cpp:73).
+- **BLE 4.2/5.0 (линковка):** `esp_ble_gap_start_advertising`/`esp_ble_gap_config_adv_data`
+  компилируются только под `BLE_42_FEATURE_SUPPORT` (`esp_gap_ble_api.c:30-143`, `bt_target.h:219`),
+  а на S3 по умолчанию включён BLE 5.0 → undefined reference. В `sdkconfig.defaults` выставлено
+  `BT_BLE_42_FEATURES_SUPPORTED=y` + `BT_BLE_50_FEATURES_SUPPORTED=n` (шаблон IDF-примеров для
+  esp32s3); Kconfig запрещает одновременную работу 4.2/5.0.
+- **`BIT(44) → BIT64`** в `ovms_peripherals.cpp`: пины UART модема 43/44 не помещались в
+  32-битную `unsigned long`-пин-маску `gpio_config` (UB, маска обнулялась; варнинг
+  `-Wshift-count-overflow` в логе сборки).
+
+### Сборка (чистая, из sdkconfig.defaults)
+- `rm sdkconfig` → регенерация из defaults; сборка дошла до линковки, упала на BLE-символах
+  (см. выше) → фикс defaults → пересборка.
+- **ICE компилятора повторился** (IRA pass, `esp_lcd_panel_rgb.c`, недетерминировано под
+  полной параллельной нагрузкой) → обход: `ninja -j1 <obj>`, затем возобновление.
+- **Результат: `Project build complete`, `ovms3.bin` 0x4b99c0 (32% partition free), exit 0.**
+  Предупреждения `-Wshift-count-overflow` исчезли после `BIT64`.
+- Ранее активный конфиг бэкаплен: `%TEMP%\ovms_sdkconfig.bak` (для сравнения: 498 различий
+  с новым, из них 9 изменений значений — все учтены в `sdkconfig.defaults`).
+
+### Документация
+- `porting/DEVIATIONS.md`: §1.3 (правки под T-2CAN), §2 (twaican), §4 (конфигурация:
+  BLE 4.2/5.0, BT=y, ICE-обход, результат чистой сборки).
+- `PLAN.md`: Фаза 0 закрыта полностью; Фаза 1 — can1/twaican, MODEM_GPIO_RESET, can3-guard
+  отмечены; Фаза 2 — GetNetTypes отмечен.
