@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/select.h>
 #include "console_async.h"
 
 #include "ovms_log.h"
@@ -54,6 +55,13 @@ ConsoleAsync::ConsoleAsync()
 #ifdef CONFIG_OVMS_DEV_SECUREASYNC
   SetSecure(true);	// Security Risk - Only for development
 #endif
+#if OVMS_CONSOLE_USE_STDIN
+  // USB console: input is read from stdin in Service() (HandleStdin), so no
+  // UART driver is installed and UART0 stays free for the cellular modem.
+  // The console event queue is created here (upstream lets the UART driver
+  // create it) so log messages can still be broadcast to this console.
+  m_queue = xQueueCreate(CONFIG_OVMS_HW_ASYNC_QUEUE_SIZE, sizeof(Event));
+#else
   uart_config_t uart_config =
     {
     .baud_rate = 115200,
@@ -74,6 +82,7 @@ ConsoleAsync::ConsoleAsync()
   // Install UART driver, and get the queue.
   uart_driver_install(EX_UART_NUM, BUF_SIZE * 2, BUF_SIZE * 2,
     CONFIG_OVMS_HW_ASYNC_QUEUE_SIZE, &m_queue, 0);
+#endif
 
   Instantiate();
   }
@@ -88,7 +97,19 @@ void ConsoleAsync::Service()
   {
   Initialize("Async");
   esp_log_set_vprintf(ConsoleLogger);
+#if OVMS_CONSOLE_USE_STDIN
+  // Upstream blocks in Poll(portMAX_DELAY) on the UART driver event queue.
+  // Without a UART, poll the log queue with a short timeout and drain stdin
+  // in between. Poll() only returns from its queue-empty branch, which
+  // restores the prompt (m_state = AT_PROMPT) before returning.
+  for (;;)
+    {
+    Poll(pdMS_TO_TICKS(20));
+    HandleStdin();
+    }
+#else
   OvmsConsole::Service();
+#endif
   }
 
 int ConsoleAsync::puts(const char* s)
@@ -180,3 +201,40 @@ void ConsoleAsync::HandleDeviceEvent(void* pEvent)
       break;
     }
   }
+
+#if OVMS_CONSOLE_USE_STDIN
+void ConsoleAsync::HandleStdin()
+  {
+  // Non-blocking poll: select() with zero timeout, then read. read() returns
+  // what is available (character device semantics) and cannot block because
+  // select() signalled readability first.
+  fd_set fds;
+  struct timeval tv = { 0, 0 };
+  FD_ZERO(&fds);
+  FD_SET(STDIN_FILENO, &fds);
+  if (select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv) <= 0)
+    return;
+  int len = read(STDIN_FILENO, data, sizeof(data));
+  if (len <= 0)
+    return;
+  // Translate CR (Enter) from monitor into \n for microrl
+  bool found = false;
+  for (int i = 0; i < len; ++i)
+    {
+    if (found && data[i] == '\n')
+      {
+      for (int j = i+1; j < len; ++j)
+        data[j-1] = data[j];
+      --len;
+      continue;
+      }
+    found = false;
+    if (data[i] == '\r')
+      {
+      data[i] = '\n';
+      found = true;
+      }
+    }
+  ProcessChars((char*)data, len);
+  }
+#endif

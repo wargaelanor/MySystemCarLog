@@ -251,7 +251,13 @@ void OvmsEvents::EventTask()
   {
   event_queue_t msg;
 
-  esp_task_wdt_add(NULL); // WATCHDOG is active for this task
+  // WATCHDOG is active for this task.
+  // ESP-IDF5: TWDT is initialised in main_task, which can start after tasks
+  // created by early global constructors (init_priority) => esp_task_wdt_add
+  // fails with ESP_ERR_INVALID_STATE and every esp_task_wdt_reset() below
+  // would log "task not found". Retry until the watchdog exists (~5 s max).
+  for (int i = 0; i < 500 && esp_task_wdt_add(NULL) != ESP_OK; i++)
+    vTaskDelay(pdMS_TO_TICKS(10));
   while(1)
     {
     if (xQueueReceive(m_taskqueue, &msg, pdMS_TO_TICKS(5000)) == pdTRUE)

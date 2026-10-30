@@ -37,6 +37,14 @@
 
 #define BUF_SIZE (1024)
 
+// USB-Serial-JTAG / USB-CDC console: terminal input is read from stdin (fd 0)
+// in Service() instead of a UART driver, leaving UART0 free for the modem.
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG || CONFIG_ESP_CONSOLE_USB_CDC
+#define OVMS_CONSOLE_USE_STDIN 1
+#else
+#define OVMS_CONSOLE_USE_STDIN 0
+#endif
+
 class ConsoleAsync : public OvmsConsole, public TaskBase
   {
   private:
@@ -53,6 +61,9 @@ class ConsoleAsync : public OvmsConsole, public TaskBase
     void Service();
     static int ConsoleLogger(const char* fmt, va_list arg) __attribute__ ((format (printf, 1, 0)));
     void HandleDeviceEvent(void* pEvent);
+#if OVMS_CONSOLE_USE_STDIN
+    void HandleStdin();
+#endif
 
   private:
     static ConsoleAsync* m_instance;

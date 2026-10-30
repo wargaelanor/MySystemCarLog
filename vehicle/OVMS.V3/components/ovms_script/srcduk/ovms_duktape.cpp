@@ -1634,7 +1634,13 @@ void OvmsDuktape::DukTapeTask()
   duktape_queue_t msg;
 
   ESP_LOGI(TAG,"Duktape: Scripting task is running");
-  esp_task_wdt_add(NULL); // WATCHDOG is active for this task
+  // WATCHDOG is active for this task.
+  // ESP-IDF5: TWDT is initialised in main_task, which can start after tasks
+  // created by early global constructors (init_priority) => esp_task_wdt_add
+  // fails with ESP_ERR_INVALID_STATE and esp_task_wdt_reset() would log
+  // "task not found" on every call. Retry until the watchdog exists (~5 s max).
+  for (int i = 0; i < 500 && esp_task_wdt_add(NULL) != ESP_OK; i++)
+    vTaskDelay(pdMS_TO_TICKS(10));
 
   while(1)
     {
