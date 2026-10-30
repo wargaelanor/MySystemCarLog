@@ -15,3 +15,7 @@
 	path = vehicle/OVMS.V3/components/wolfssl/wolfssl
 	# DEV: fork hosts ESP-IDF 5.4/ESP32-S3 compat commit (aa396c3) - see DEVIATIONS.md
 	url = https://github.com/wargaelanor/wolfssl.git
+[submodule "leafapp"]
+	path = leafapp
+	url = https://github.com/wargaelanor/leafapp.git
+	branch = sim800
